@@ -1,0 +1,33 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Atmel Studio Solution File, Format Version 11.00
+VisualStudioVersion = 14.0.23107.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "s2c_sensor_module", "s2c_sensor_module\s2c_sensor_module.cproj", "{DCE6C7E3-EE26-4D79-826B-08594B9AD897}"
+EndProject
+Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "s2c_led_test", "s2c_led_test\s2c_led_test.cproj", "{A0DEB1C0-DED0-4926-9147-77F67E78A0D9}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "s2c_common", "s2c_common", "{AA28BB76-437D-4585-A91A-F4D390AFDB1B}"
+	ProjectSection(SolutionItems) = preProject
+		s2c_common\s2c_utils.h = s2c_common\s2c_utils.h
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|ARM = Debug|ARM
+		Release|ARM = Release|ARM
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Debug|ARM.ActiveCfg = Debug|ARM
+		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Debug|ARM.Build.0 = Debug|ARM
+		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Release|ARM.ActiveCfg = Release|ARM
+		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Release|ARM.Build.0 = Release|ARM
+		{A0DEB1C0-DED0-4926-9147-77F67E78A0D9}.Debug|ARM.ActiveCfg = Debug|ARM
+		{A0DEB1C0-DED0-4926-9147-77F67E78A0D9}.Debug|ARM.Build.0 = Debug|ARM
+		{A0DEB1C0-DED0-4926-9147-77F67E78A0D9}.Release|ARM.ActiveCfg = Release|ARM
+		{A0DEB1C0-DED0-4926-9147-77F67E78A0D9}.Release|ARM.Build.0 = Release|ARM
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
