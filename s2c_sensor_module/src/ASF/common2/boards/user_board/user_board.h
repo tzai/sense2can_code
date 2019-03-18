@@ -36,18 +36,19 @@ void system_board_init(void);
 #define BOARD_NAME                "SENSE2CAN"
 
 // On-board LED
-#define LED_USER_PORT		PORT_PA28
-#define LED_USER_PIN		PIN_PA28
+#define LED_USER_PORT			PORT_PA28
+#define LED_USER_PIN			PIN_PA28
 
 // ADC inputs
-#define AN0				ADC_POSITIVE_INPUT_PIN0
-#define AN1				ADC_POSITIVE_INPUT_PIN1
-#define AN2				ADC_POSITIVE_INPUT_PIN4
-#define AN3				ADC_POSITIVE_INPUT_PIN5
+#define AN0						ADC_POSITIVE_INPUT_PIN0
+#define AN1						ADC_POSITIVE_INPUT_PIN1
+#define AN2						ADC_POSITIVE_INPUT_PIN4
+#define AN3						ADC_POSITIVE_INPUT_PIN5
 
 // I2C
-#define SDA				NULL	//TODO: figure out
-#define SCL				NULL	//TODO: figure out
+#define I2C_MASTER_MODULE		SERCOM2
+#define I2C_SDA_PIN				PIN_PA08D_SERCOM2_PAD0
+#define I2C_SCL_PIN				PIN_PA09D_SERCOM2_PAD1
 
 // Pinstraps
 #define PINSTRAP_0				PORT_PA00
@@ -57,7 +58,7 @@ void system_board_init(void);
 #define PINSTRAPS				PINSTRAP_0 | PINSTRAP_1 | PINSTRAP_2 | PINSTRAP_3
 
 // CAN
-#define CAN_STBY		PORT_PA23
+#define CAN_STBY_PIN			PIN_PA23
 #define CAN_MODULE              CAN0
 #define CAN_TX_PIN              PIN_PA24G_CAN0_TX
 #define CAN_TX_MUX_SETTING      MUX_PA24G_CAN0_TX

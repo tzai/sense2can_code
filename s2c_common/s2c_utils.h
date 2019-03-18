@@ -100,6 +100,10 @@ static inline enum s2c_board_type get_board_type_from_id(uint8_t id) {
 #define I2C_NUM_TEMP_SENSORS	3
 
 #define I2C_MLX_BASE_ID			0x5A
+#define I2C_MLX_WHEEL_ID		I2C_MLX_BASE_ID
+#define I2C_MLX_INNER_ID		I2C_MLX_BASE_ID
+#define I2C_MLX_MIDDLE_ID		I2C_MLX_BASE_ID + 0x1
+#define I2C_MLX_OUTER_ID		I2C_MLX_BASE_ID + 0x2
 
 
 #endif /* S2C_UTILS_H_ */

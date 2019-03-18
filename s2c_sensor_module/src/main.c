@@ -32,6 +32,7 @@
 
 // Function prototypes
 uint8_t get_pinstrap_id(void);
+inline float uint16ToC(uint16_t data);
 
 void configure_adc(void);
 void configure_can(void);
@@ -63,7 +64,11 @@ bool adc_section_done = false; // true when all adc cannels have been read
 
 // I2C variables
 struct i2c_master_packet wr_packet, rd_packet;
+struct i2c_master_module i2c_master_instance;
 uint16_t i2c_temperature_vals[I2C_NUM_TEMP_SENSORS] = {0};
+static uint8_t registerAddress = 0x07;
+static uint8_t buffer[8];
+uint16_t ret;
 bool i2c_section_done = false;
 
 // CAN variables
@@ -84,6 +89,17 @@ uint8_t get_pinstrap_id(void) {
 		id = (input & PINSTRAP_0) | ((input & PINSTRAP_1) << 1) | ((input & PINSTRAP_2) << 2) | ((input & PINSTRAP_3) << 3);
 	}
 	return id;
+}
+
+/**
+ * \brief Converts a raw 16-bit integer value into degrees Celsius 
+ * 
+ * \return floating point temperature value in degrees Celsius
+ * 
+ */
+inline float uint16ToC(uint16_t data) {
+	
+	return (float)data * 0.02 - 273.15;
 }
 
 // Configuration functions
@@ -109,7 +125,18 @@ void configure_i2c(void) {
 	struct i2c_master_config config_i2c;
 	i2c_master_get_config_defaults(&config_i2c);
 	
-	//TODO: Dion to fill out
+	config_i2c.pinmux_pad0 = I2C_SDA_PIN;
+	config_i2c.pinmux_pad1 = I2C_SCL_PIN;
+	config_i2c.buffer_timeout = 65535;
+
+
+	/* Initialize and enable device with config */
+	while(i2c_master_init(&i2c_master_instance, SERCOM2, &config_i2c) != STATUS_OK);
+
+	i2c_master_enable(&i2c_master_instance);
+	
+	wr_packet.data_length = 1;
+	wr_packet.data = &registerAddress;
 }
 
 void configure_can(void) {
@@ -119,7 +146,7 @@ void configure_can(void) {
 	pin_config.mux_position = CAN_TX_MUX_SETTING;
 	system_pinmux_pin_set_config(CAN_TX_PIN, &pin_config);
 	pin_config.mux_position = CAN_RX_MUX_SETTING;
-	system_pinmux_pin_set_config(PIN_PA25G_CAN0_RX, &pin_config);
+	system_pinmux_pin_set_config(CAN_RX_PIN, &pin_config);
 
 	/* Initialize the module. */
 	struct can_config config_can;
@@ -132,6 +159,14 @@ void configure_can(void) {
 	system_interrupt_enable(SYSTEM_INTERRUPT_MODULE_CAN0);
 	can_enable_interrupt(&can_instance, CAN_PROTOCOL_ERROR_ARBITRATION
 	| CAN_PROTOCOL_ERROR_DATA);
+	
+	/* Set standby pin LOW on transceiver */
+	struct port_config config_port;
+	port_get_config_defaults(&config_port);
+	config_port.direction = PORT_PIN_DIR_OUTPUT;
+	config_port.input_pull = PORT_PIN_PULL_NONE;
+	port_pin_set_config(CAN_STBY_PIN, &config_port);
+	port_pin_set_output_level(CAN_STBY_PIN, false);
 }
 
 // Callback functions
@@ -155,10 +190,6 @@ void adc_callback(struct adc_module *const module) {
 	}
 }
 
-void i2c_callback(struct i2c_master_module *const module) {
-	
-}
-
 // Loop functions
 
 void loop_adc(void) {
@@ -172,7 +203,46 @@ void loop_adc(void) {
 
 void loop_i2c(void) {
 	//TODO: Dion to add stuff
-	i2c_section_done = true; // dummy code for now
+	switch(board_type) {
+	case S2C_BOARD_WHEEL:
+		wr_packet.address = I2C_MLX_WHEEL_ID;
+		//rd_packet.address = SENSOR1_ADDRESS;
+		while(i2c_master_write_packet_wait_no_stop(&i2c_master_instance, &wr_packet) == STATUS_BUSY);
+		while(i2c_master_read_packet_wait(&i2c_master_instance, &rd_packet) == STATUS_BUSY);
+		i2c_temperature_vals[I2C_INNER_TEMP] = uint16ToC(buffer[0] | buffer[1] << 8);
+		break;
+			
+	case S2C_BOARD_TIRE_TEMP:
+		// read sensor 1 (0x5A) (INNER)
+		wr_packet.address = I2C_MLX_INNER_ID;
+		//rd_packet.address = SENSOR1_ADDRESS;
+		while(i2c_master_write_packet_wait_no_stop(&i2c_master_instance, &wr_packet) == STATUS_BUSY);
+		while(i2c_master_read_packet_wait(&i2c_master_instance, &rd_packet) == STATUS_BUSY);
+		i2c_temperature_vals[I2C_INNER_TEMP] = buffer[0] | buffer[1] << 8;
+		//printf("Inner Band Temperature: %.2f\n", temp);
+			
+		// read sensor 2 (0x5B) (MIDDLE)
+		wr_packet.address = I2C_MLX_MIDDLE_ID;
+		//rd_packet.address = SENSOR2_ADDRESS;
+		while(i2c_master_write_packet_wait_no_stop(&i2c_master_instance, &wr_packet) == STATUS_BUSY);
+		while(i2c_master_read_packet_wait(&i2c_master_instance, &rd_packet) == STATUS_BUSY);
+		i2c_temperature_vals[I2C_MIDDLE_TEMP] = buffer[0] | buffer[1] << 8;
+		//printf("Middle Band Temperature: %.2f\n", temp);
+			
+		// read sensor 3 (0x5C) (OUTER)
+		wr_packet.address = I2C_MLX_OUTER_ID;
+		//rd_packet.address = SENSOR3_ADDRESS;
+		while(i2c_master_write_packet_wait_no_stop(&i2c_master_instance, &wr_packet) == STATUS_BUSY);
+		while(i2c_master_read_packet_wait(&i2c_master_instance, &rd_packet) == STATUS_BUSY);
+		i2c_temperature_vals[I2C_OUTER_TEMP] = buffer[0] | buffer[1] << 8;
+		break;
+	case S2C_BOARD_RADIATOR:
+	case S2C_BOARD_OTHER:
+	default:
+		// do nothing
+		break;
+	}
+	i2c_section_done = true;
 }
 
 void loop_can(void) {
@@ -198,6 +268,12 @@ void loop_can(void) {
 		tx_elem.T1.bit.DLC = 4;
 		convert_16_bit_to_byte_array(adc_channel_vals[0], tx_elem.data);
 		convert_16_bit_to_byte_array(adc_channel_vals[1], tx_elem.data + 2);
+		
+		/*//Dummy values
+		tx_elem.data[0] = 0x80 & 0xFF;
+		tx_elem.data[1] = 0x30 & 0xFF;
+		can_set_tx_buffer_element(&can_instance, &tx_elem, 0);
+		can_tx_transfer_request(&can_instance, 1);*/
 		break;
 	}
 }
@@ -255,5 +331,18 @@ int main (void)
 			loop_can();
 			adc_section_done = i2c_section_done = false;
 		}
+	}
+}
+
+void CAN0_Handler(void)
+{
+	volatile uint32_t status;
+	status = can_read_interrupt_status(&can_instance);
+	
+	if ((status & CAN_PROTOCOL_ERROR_ARBITRATION)
+	|| (status & CAN_PROTOCOL_ERROR_DATA)) {
+		can_clear_interrupt_status(&can_instance, CAN_PROTOCOL_ERROR_ARBITRATION
+		| CAN_PROTOCOL_ERROR_DATA);
+		//printf("Protocol error, please double check the clock in two boards. \r\n\r\n");
 	}
 }
