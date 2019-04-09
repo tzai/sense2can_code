@@ -68,6 +68,18 @@ struct s2c_board_config {
  * ID = 4 to 7: S2C_BOARD_TIRE_TEMP
  * ID = 8:		S2C_BOARD_RADIATOR
  * All others:	S2C_BOARD_OTHER
+ * 
+ * Order follows CAN bus order:
+ *           __
+ *          /  \
+ *   2,6 FL ---- FR 3,7
+ *         / CM \ <------- CENTRAL MODULE
+ *        |      |
+ *        |      | RAD 8
+ *        \      /
+ *  1,5 RL |----| RR 0,4
+ *         |____|
+ *      
  */
 static inline enum s2c_board_type get_board_type_from_id(uint8_t id) {
 	if(id < 4) { // covers 0, 1, 2, 3

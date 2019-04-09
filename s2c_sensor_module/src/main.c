@@ -73,6 +73,7 @@ bool i2c_section_done = false;
 
 // CAN variables
 //TODO
+bool can_received = false;
 
 
 /**
@@ -317,6 +318,9 @@ int main (void)
 	
 	system_interrupt_enable_global();
 	
+	// Turn on generic LED to indicate that config is done
+	port_pin_set_output_level(LED_USER_PIN, true);
+	
 	while (1) {
 		// 1. read ADC, if needed
 		// 2. read I2C, if needed
@@ -327,9 +331,9 @@ int main (void)
 		if(board_config.use_i2c) loop_i2c();
 		
 		// Send data over CAN once it is all available. Would it be more efficient to send it as it's partially available?
-		if(adc_section_done && i2c_section_done) {
+		if(true/*adc_section_done && i2c_section_done*/) {
 			loop_can();
-			adc_section_done = i2c_section_done = false;
+			/*adc_section_done = i2c_section_done = false;*/
 		}
 	}
 }
