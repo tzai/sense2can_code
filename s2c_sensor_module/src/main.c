@@ -39,7 +39,6 @@ void configure_can(void);
 void configure_i2c(void);
 
 void adc_callback(struct adc_module *const module);
-void i2c_callback(struct i2c_master_module *const module);
 
 void loop_adc(void);
 void loop_i2c(void);
@@ -70,6 +69,7 @@ static uint8_t registerAddress = 0x07;
 static uint8_t buffer[8];
 uint16_t ret;
 bool i2c_section_done = false;
+enum status_code i2c_status_code;
 
 // CAN variables
 //TODO
@@ -87,7 +87,10 @@ uint8_t get_pinstrap_id(void) {
 	// If not initialized, initialize
 	if(id == 255) {
 		int input = port_group_get_input_level(&PORTA, PINSTRAPS);
-		id = (input & PINSTRAP_0) | ((input & PINSTRAP_1) << 1) | ((input & PINSTRAP_2) << 2) | ((input & PINSTRAP_3) << 3);
+		id =	((input & PINSTRAP_0) > 0) | 
+				(((input & PINSTRAP_1) > 0) << 1) | 
+				(((input & PINSTRAP_2) > 0) << 2) | 
+				(((input & PINSTRAP_3) > 0) << 3);
 	}
 	return id;
 }
@@ -102,6 +105,8 @@ inline float uint16ToC(uint16_t data) {
 	
 	return (float)data * 0.02 - 273.15;
 }
+
+
 
 // Configuration functions
 
@@ -128,7 +133,7 @@ void configure_i2c(void) {
 	
 	config_i2c.pinmux_pad0 = I2C_SDA_PIN;
 	config_i2c.pinmux_pad1 = I2C_SCL_PIN;
-	config_i2c.buffer_timeout = 65535;
+	config_i2c.buffer_timeout = 200;
 
 
 	/* Initialize and enable device with config */
@@ -188,6 +193,7 @@ void adc_callback(struct adc_module *const module) {
 		
 	} else {
 		adc_section_done = true;
+		adc_channel_index = 0;
 	}
 }
 
@@ -199,43 +205,47 @@ void loop_adc(void) {
 		adc_set_positive_input(&adc_instance, adc_channel[adc_channel_index]);
 		adc_read_buffer_job(&adc_instance, adc_sample_buffer, ADC_NUM_SAMPLES);
 	}
-	//TODO: anything else? is there even a point to this function?
 }
 
 void loop_i2c(void) {
-	//TODO: Dion to add stuff
+	
 	switch(board_type) {
 	case S2C_BOARD_WHEEL:
 		wr_packet.address = I2C_MLX_WHEEL_ID;
 		//rd_packet.address = SENSOR1_ADDRESS;
-		while(i2c_master_write_packet_wait_no_stop(&i2c_master_instance, &wr_packet) == STATUS_BUSY);
-		while(i2c_master_read_packet_wait(&i2c_master_instance, &rd_packet) == STATUS_BUSY);
-		i2c_temperature_vals[I2C_INNER_TEMP] = uint16ToC(buffer[0] | buffer[1] << 8);
+		while((i2c_status_code = i2c_master_write_packet_wait_no_stop(&i2c_master_instance, &wr_packet)) == STATUS_BUSY);
+		if(i2c_status_code == STATUS_OK) {
+			while(i2c_master_read_packet_wait(&i2c_master_instance, &rd_packet) == STATUS_BUSY);
+			i2c_temperature_vals[I2C_INNER_TEMP] = uint16ToC(buffer[0] | buffer[1] << 8);
+		}
 		break;
 			
 	case S2C_BOARD_TIRE_TEMP:
 		// read sensor 1 (0x5A) (INNER)
 		wr_packet.address = I2C_MLX_INNER_ID;
-		//rd_packet.address = SENSOR1_ADDRESS;
-		while(i2c_master_write_packet_wait_no_stop(&i2c_master_instance, &wr_packet) == STATUS_BUSY);
-		while(i2c_master_read_packet_wait(&i2c_master_instance, &rd_packet) == STATUS_BUSY);
-		i2c_temperature_vals[I2C_INNER_TEMP] = buffer[0] | buffer[1] << 8;
-		//printf("Inner Band Temperature: %.2f\n", temp);
+		while((i2c_status_code = i2c_master_write_packet_wait_no_stop(&i2c_master_instance, &wr_packet)) == STATUS_BUSY);
+		if(i2c_status_code == STATUS_OK) {
+			while(i2c_master_read_packet_wait(&i2c_master_instance, &rd_packet) == STATUS_BUSY);
+			i2c_temperature_vals[I2C_INNER_TEMP] = buffer[0] | buffer[1] << 8;
+			//printf("Inner Band Temperature: %.2f\n", temp);
+		}
 			
 		// read sensor 2 (0x5B) (MIDDLE)
 		wr_packet.address = I2C_MLX_MIDDLE_ID;
-		//rd_packet.address = SENSOR2_ADDRESS;
-		while(i2c_master_write_packet_wait_no_stop(&i2c_master_instance, &wr_packet) == STATUS_BUSY);
-		while(i2c_master_read_packet_wait(&i2c_master_instance, &rd_packet) == STATUS_BUSY);
-		i2c_temperature_vals[I2C_MIDDLE_TEMP] = buffer[0] | buffer[1] << 8;
-		//printf("Middle Band Temperature: %.2f\n", temp);
+		while((i2c_status_code = i2c_master_write_packet_wait_no_stop(&i2c_master_instance, &wr_packet)) == STATUS_BUSY);
+		if(i2c_status_code == STATUS_OK) {
+			while(i2c_master_read_packet_wait(&i2c_master_instance, &rd_packet) == STATUS_BUSY);
+			i2c_temperature_vals[I2C_MIDDLE_TEMP] = buffer[0] | buffer[1] << 8;
+			//printf("Middle Band Temperature: %.2f\n", temp);
+		}
 			
 		// read sensor 3 (0x5C) (OUTER)
 		wr_packet.address = I2C_MLX_OUTER_ID;
-		//rd_packet.address = SENSOR3_ADDRESS;
-		while(i2c_master_write_packet_wait_no_stop(&i2c_master_instance, &wr_packet) == STATUS_BUSY);
-		while(i2c_master_read_packet_wait(&i2c_master_instance, &rd_packet) == STATUS_BUSY);
-		i2c_temperature_vals[I2C_OUTER_TEMP] = buffer[0] | buffer[1] << 8;
+		while((i2c_status_code = i2c_master_write_packet_wait_no_stop(&i2c_master_instance, &wr_packet)) == STATUS_BUSY);
+		if(i2c_status_code == STATUS_OK) {
+			while(i2c_master_read_packet_wait(&i2c_master_instance, &rd_packet) == STATUS_BUSY);
+			i2c_temperature_vals[I2C_OUTER_TEMP] = buffer[0] | buffer[1] << 8;
+		}
 		break;
 	case S2C_BOARD_RADIATOR:
 	case S2C_BOARD_OTHER:
@@ -249,17 +259,19 @@ void loop_i2c(void) {
 void loop_can(void) {
 	struct can_tx_element tx_elem;
 	can_get_tx_buffer_element_defaults(&tx_elem);
-	tx_elem.T0.bit.XTD = 1;
+	//tx_elem.T0.bit.XTD = 1;
 	
 	switch(board_type) {
 	case S2C_BOARD_WHEEL:
 		tx_elem.T1.bit.DLC = 4;
+		tx_elem.T0.reg = CAN_TX_ELEMENT_T0_STANDARD_ID(CAN_MSG_ID(board_id, 0));
 		convert_16_bit_to_byte_array(adc_channel_vals[0], tx_elem.data);
 		convert_16_bit_to_byte_array(i2c_temperature_vals[I2C_BRAKE_TEMP], tx_elem.data + 2);
 		break;
 		
 	case S2C_BOARD_TIRE_TEMP:
 		tx_elem.T1.bit.DLC = 6;
+		tx_elem.T0.reg = CAN_TX_ELEMENT_T0_STANDARD_ID(CAN_MSG_ID(board_id, 0));
 		convert_16_bit_to_byte_array(i2c_temperature_vals[I2C_OUTER_TEMP], tx_elem.data);
 		convert_16_bit_to_byte_array(i2c_temperature_vals[I2C_MIDDLE_TEMP], tx_elem.data + 2);
 		convert_16_bit_to_byte_array(i2c_temperature_vals[I2C_INNER_TEMP], tx_elem.data + 4);
@@ -267,6 +279,7 @@ void loop_can(void) {
 		
 	case S2C_BOARD_RADIATOR:
 		tx_elem.T1.bit.DLC = 4;
+		tx_elem.T0.reg = CAN_TX_ELEMENT_T0_STANDARD_ID(CAN_MSG_ID(board_id, 0));
 		convert_16_bit_to_byte_array(adc_channel_vals[0], tx_elem.data);
 		convert_16_bit_to_byte_array(adc_channel_vals[1], tx_elem.data + 2);
 		
@@ -277,6 +290,12 @@ void loop_can(void) {
 		can_tx_transfer_request(&can_instance, 1);*/
 		break;
 	}
+	
+	// only send if tx_element has been configured i.e. if ID has been set
+	if(tx_elem.T0.bit.ID > 0) {
+		can_set_tx_buffer_element(&can_instance, &tx_elem, 0);
+		can_tx_transfer_request(&can_instance, 1);
+	}
 }
 
 
@@ -285,9 +304,8 @@ int main (void)
 	system_init();
 
 	// If code is configured to use pinstraps, do so. If not, leave at default
-	if(USE_PINSTRAPS) {
-		board_id = get_pinstrap_id();
-	}
+	board_id = get_pinstrap_id();
+
 	board_type = get_board_type_from_id(board_id);
 	
 	switch(board_type) {
@@ -302,6 +320,7 @@ int main (void)
 	case S2C_BOARD_RADIATOR:
 		S2C_BOARD_RADIATOR_CONFIG(board_config);
 		break;
+	
 	//default: do anything?
 	}
 	// Confirm that there is no violation that could lead to the adc channel index being greater than the sample array
@@ -325,15 +344,16 @@ int main (void)
 		// 1. read ADC, if needed
 		// 2. read I2C, if needed
 		// 3. send data over CAN
-		// 
 		
 		if(board_config.use_adc) loop_adc();
 		if(board_config.use_i2c) loop_i2c();
 		
 		// Send data over CAN once it is all available. Would it be more efficient to send it as it's partially available?
-		if(true/*adc_section_done && i2c_section_done*/) {
+		if((!board_config.use_adc || adc_section_done) && 
+			(!board_config.use_i2c || i2c_section_done)) {
 			loop_can();
-			/*adc_section_done = i2c_section_done = false;*/
+			delay_ms(20);
+			adc_section_done = i2c_section_done = false;
 		}
 	}
 }
@@ -343,10 +363,8 @@ void CAN0_Handler(void)
 	volatile uint32_t status;
 	status = can_read_interrupt_status(&can_instance);
 	
-	if ((status & CAN_PROTOCOL_ERROR_ARBITRATION)
-	|| (status & CAN_PROTOCOL_ERROR_DATA)) {
-		can_clear_interrupt_status(&can_instance, CAN_PROTOCOL_ERROR_ARBITRATION
-		| CAN_PROTOCOL_ERROR_DATA);
+	if ((status & CAN_PROTOCOL_ERROR_ARBITRATION) || (status & CAN_PROTOCOL_ERROR_DATA)) {
+		can_clear_interrupt_status(&can_instance, CAN_PROTOCOL_ERROR_ARBITRATION | CAN_PROTOCOL_ERROR_DATA);
 		//printf("Protocol error, please double check the clock in two boards. \r\n\r\n");
 	}
 }

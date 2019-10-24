@@ -94,10 +94,8 @@ static inline enum s2c_board_type get_board_type_from_id(uint8_t id) {
 }
 
 // CAN stuff
-#define CAN_ID_BASE 0x100 //completely arbitrary
-#define CAN_MSG_ID(id, msg_id)	 CAN_ID_BASE + id << 4 + msg_id
-
-#define AS_16BIT(x, idx) memcpy_code2ram
+#define CAN_ID_BASE 0x700 // avoids clashing with potential bootloader messages
+#define CAN_MSG_ID(id, msg_id)	 CAN_ID_BASE + (id << 4) + msg_id
 
 // ADC stuff
 #define ADC_NUM_SAMPLES			4
